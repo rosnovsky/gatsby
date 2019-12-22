@@ -1,6 +1,7 @@
 const toString = require(`mdast-util-to-string`)
 const visit = require(`unist-util-visit`)
 const slugs = require(`github-slugger`)()
+const deburr = require(`lodash/deburr`)
 
 function patch(context, key, value) {
   if (!context[key]) {
@@ -14,12 +15,37 @@ const svgIcon = `<svg aria-hidden="true" focusable="false" height="16" version="
 
 module.exports = (
   { markdownAST },
-  { icon = svgIcon, className = `anchor`, maintainCase = false }
+  {
+    icon = svgIcon,
+    className = `anchor`,
+    maintainCase = false,
+    removeAccents = false,
+    enableCustomId = false,
+  }
 ) => {
   slugs.reset()
 
   visit(markdownAST, `heading`, node => {
-    const id = slugs.slug(toString(node), maintainCase)
+    let id
+    if (enableCustomId && node.children.length > 0) {
+      const last = node.children[node.children.length - 1]
+      // This regex matches to preceding spaces and {#custom-id} at the end of a string.
+      // Also, checks the text of node won't be empty after the removal of {#custom-id}.
+      const match = /^(.*?)\s*\{#([\w-]+)\}$/.exec(toString(last))
+      if (match && (match[1] || node.children.length > 1)) {
+        id = match[2]
+        // Remove the custom ID from the original text.
+        if (match[1]) {
+          last.value = match[1]
+        } else {
+          node.children.pop()
+        }
+      }
+    }
+    if (!id) {
+      const slug = slugs.slug(toString(node), maintainCase)
+      id = removeAccents ? deburr(slug) : slug
+    }
     const data = patch(node, `data`, {})
 
     patch(data, `id`, id)
@@ -34,6 +60,7 @@ module.exports = (
         type: `link`,
         url: `#${id}`,
         title: null,
+        children: [],
         data: {
           hProperties: {
             "aria-label": `${label} permalink`,

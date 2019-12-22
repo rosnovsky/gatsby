@@ -1,9 +1,8 @@
+/** @jsx jsx */
+import { jsx } from "theme-ui"
 import React from "react"
 import { graphql } from "gatsby"
 import EditIcon from "react-icons/lib/md/create"
-
-import { rhythm, scale } from "../utils/typography"
-import { colors } from "../utils/presets"
 
 export default class MarkdownPageFooter extends React.Component {
   constructor() {
@@ -13,32 +12,17 @@ export default class MarkdownPageFooter extends React.Component {
   render() {
     return (
       <>
-        <hr css={{ marginTop: rhythm(2) }} />
-
+        <hr sx={{ display: `none` }} />
         {this.props.page && (
           <a
-            css={{
-              "&&": {
-                display: `block`,
-                color: colors.gray.calm,
-                fontSize: scale(-1 / 5).fontSize,
-                fontWeight: `normal`,
-                border: `none`,
-                boxShadow: `none`,
-                padding: rhythm(1 / 2),
-                "&:hover": {
-                  background: `transparent`,
-                  color: colors.gatsby,
-                },
-              },
-            }}
+            sx={{ variant: `links.muted`, mt: 9 }}
             href={`https://github.com/gatsbyjs/gatsby/blob/master/${
               this.props.packagePage ? `packages` : `docs`
             }/${this.props.page ? this.props.page.parent.relativePath : ``}`}
           >
-            <EditIcon css={{ fontSize: 20, position: `relative`, top: -2 }} />
+            <EditIcon sx={{ marginRight: 2 }} />
             {` `}
-            edit this page on GitHub
+            Edit this page on GitHub
           </a>
         )}
       </>
@@ -47,6 +31,13 @@ export default class MarkdownPageFooter extends React.Component {
 }
 
 export const fragment = graphql`
+  fragment MarkdownPageFooterMdx on Mdx {
+    parent {
+      ... on File {
+        relativePath
+      }
+    }
+  }
   fragment MarkdownPageFooter on MarkdownRemark {
     parent {
       ... on File {

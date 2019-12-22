@@ -36,10 +36,7 @@ import { action } from "@storybook/addon-actions"
 
 // automatically import all files ending in *.stories.js
 // highlight-next-line
-const req = require.context("../src", true, /.stories.js$/)
-function loadStories() {
-  req.keys().forEach(filename => req(filename))
-}
+configure(require.context("../src", true, /\.stories\.js$/), module)
 
 // highlight-start
 // Gatsby's Link overrides:
@@ -56,8 +53,6 @@ global.__PATH_PREFIX__ = ""
 window.___navigate = pathname => {
   action("NavigateTo:")(pathname)
 }
-
-configure(loadStories, module)
 // highlight-end
 ```
 
@@ -65,7 +60,65 @@ configure(loadStories, module)
 
 Next make some adjustments to Storybook's default `webpack` configuration so you can transpile Gatsby source files, and to ensure you have the necessary `babel` plugins to transpile Gatsby components.
 
-Create a new file called `webpack.config.js` in the `.storybook` folder created by the Storybook CLI. Then place the following in that file.
+Create a new file called `webpack.config.js` in the `.storybook` folder created by the Storybook CLI. Then place the following code in that file (depending on which version of Storybook you're using):
+
+**For Storybook v5:**
+
+```js:title=.storybook/webpack.config.js
+module.exports = ({ config }) => {
+  // Transpile Gatsby module because Gatsby includes un-transpiled ES6 code.
+  config.module.rules[0].exclude = [/node_modules\/(?!(gatsby)\/)/]
+
+  // use installed babel-loader which is v8.0-beta (which is meant to work with @babel/core@7)
+  config.module.rules[0].use[0].loader = require.resolve("babel-loader")
+
+  // use @babel/preset-react for JSX and env (instead of staged presets)
+  config.module.rules[0].use[0].options.presets = [
+    require.resolve("@babel/preset-react"),
+    require.resolve("@babel/preset-env"),
+  ]
+
+  config.module.rules[0].use[0].options.plugins = [
+    // use @babel/plugin-proposal-class-properties for class arrow functions
+    require.resolve("@babel/plugin-proposal-class-properties"),
+    // use babel-plugin-remove-graphql-queries to remove static queries from components when rendering in storybook
+    require.resolve("babel-plugin-remove-graphql-queries"),
+  ]
+
+  // Prefer Gatsby ES6 entrypoint (module) over commonjs (main) entrypoint
+  config.resolve.mainFields = ["browser", "module", "main"]
+
+  return config
+}
+```
+
+> Note that if you're using a [StaticQuery](/docs/static-query/) in your components, `babel-plugin-remove-graphql-queries` is required to render them in Storybook. This is because the queries are run at build time in Gatsby, and will not have been run when rendering the components directly.
+
+> When using TypeScript, add this rule:
+
+```diff:title=.storybook/webpack.config.js
+// Prefer Gatsby ES6 entrypoint (module) over commonjs (main) entrypoint
+config.resolve.mainFields = ["browser", "module", "main"]
++
++   config.module.rules.push({
++     test: /\.(ts|tsx)$/,
++     loader: require.resolve('babel-loader'),
++     options: {
++       presets: [['react-app', {flow: false, typescript: true}]],
++       plugins: [
++         require.resolve('@babel/plugin-proposal-class-properties'),
++         // use babel-plugin-remove-graphql-queries to remove static queries from components when rendering in storybook
++         require.resolve('babel-plugin-remove-graphql-queries'),
++       ],
++     },
++   });
++
++   config.resolve.extensions.push('.ts', '.tsx');
++
+return config
+```
+
+**For Storybook v4:**
 
 ```js:title=.storybook/webpack.config.js
 module.exports = (baseConfig, env, defaultConfig) => {
@@ -81,9 +134,11 @@ module.exports = (baseConfig, env, defaultConfig) => {
     require.resolve("@babel/preset-env"),
   ]
 
-  // use @babel/plugin-proposal-class-properties for class arrow functions
   defaultConfig.module.rules[0].use[0].options.plugins = [
+    // use @babel/plugin-proposal-class-properties for class arrow functions
     require.resolve("@babel/plugin-proposal-class-properties"),
+    // use babel-plugin-remove-graphql-queries to remove static queries from components when rendering in storybook
+    require.resolve("babel-plugin-remove-graphql-queries"),
   ]
 
   // Prefer Gatsby ES6 entrypoint (module) over commonjs (main) entrypoint
@@ -99,7 +154,18 @@ Once you have this configured you should run Storybook to ensure it can start up
 npm run storybook
 ```
 
-Storybook CLI adds this command to your `package.json` for you so you shouldn't have to anything other than run the command. If Storybook builds successfully you should be able to navigate to `http://localhost:6006` and see the default stories supplied by the Storybook CLI.
+Storybook CLI adds this command to your `package.json` for you so you shouldn't have to anything other than run the command. If Storybook builds successfully you should be able to navigate to <http://localhost:6006> and see the default stories supplied by the Storybook CLI.
+
+However, if you use `StaticQuery` or `useStaticQuery` in your project Storybook needs to be run with the `NODE_ENV` set to `production` (as Storybook sets this by default to `development`). Otherwise `babel-plugin-remove-graphql-queries` won't be run. Moreover Storybook needs to know about [static files](https://storybook.js.org/docs/configurations/serving-static-files/#2-via-a-directory) generated by Gatsby's `StaticQuery`. Your scripts should look like:
+
+```json:title=package.json
+{
+  "scripts": {
+    "storybook": "NODE_ENV=production start-storybook -s public",
+    "build-storybook": "NODE_ENV=production build-storybook -s public"
+  }
+}
+```
 
 ## Writing stories
 

@@ -11,14 +11,21 @@ stores via the [Shopify Storefront API][shopify-storefront-api].
 
 ## Install
 
-```sh
+```shell
 npm install --save gatsby-source-shopify
 ```
 
 ## How to use
 
+Ensure you have an access token for the [Shopify Storefront API][shopify-storefront-api]. The token should have the following permissions:
+
+- Read products, variants, and collections
+- Read product tags
+- Read content like articles, blogs, and comments
+
+Then in your `gatsby-config.js` add the following config to enable this plugin:
+
 ```js
-// In your gatsby-config.js
 plugins: [
   /*
    * Gatsby's data processing layer begins with “source”
@@ -30,6 +37,9 @@ plugins: [
       // The domain name of your Shopify shop. This is required.
       // Example: 'gatsby-source-shopify-test-shop' if your Shopify address is
       // 'gatsby-source-shopify-test-shop.myshopify.com'.
+      // If you are running your shop on a custom domain, you need to use that
+      // as the shop name, without a trailing slash, for example:
+      // shopName: "gatsby-shop.com",
       shopName: "gatsby-source-shopify-test-shop",
 
       // An API access token to your Shopify shop. This is required.
@@ -45,10 +55,23 @@ plugins: [
       // much time was required to fetch and process the data.
       // Defaults to true.
       verbose: true,
+
+      // Number of records to fetch on each request when building the cache
+      // at startup. If your application encounters timeout errors during
+      // startup, try decreasing this number.
+      paginationSize: 250,
+
+      // List of collections you want to fetch.
+      // Possible values are: 'shop' and 'content'.
+      // Defaults to ['shop', 'content'].
+      includeCollections: ["shop", "content"],
     },
   },
 ]
 ```
+
+NOTE: By default, all metafields are private. In order to pull metafields,
+you must first [expose the metafield to the Storefront API](https://help.shopify.com/en/api/guides/metafields/storefront-api-metafields#expose-metafields-to-the-storefront-api).
 
 ## How to query
 
@@ -94,7 +117,6 @@ The following data types are available:
 | **Product**        | Represents an individual item for sale in a Shopify store.                                                            |
 | **ProductOption**  | Custom product property names.                                                                                        |
 | **ProductVariant** | Represents a different version of a product, such as differing sizes or differing colors.                             |
-| **ProductType**    | Represents a category of products.                                                                                    |
 | **ShopPolicy**     | Policy that a merchant has configured for their store, such as their refund or privacy policy.                        |
 
 For each data type listed above, `shopify${typeName}` and
@@ -113,7 +135,7 @@ provided on the `comments` field.
 ```graphql
 {
   allShopifyArticle {
-    edge {
+    edges {
       node {
         id
         author {
@@ -147,7 +169,7 @@ directly like the following:
 ```graphql
 {
   allShopifyBlog {
-    edge {
+    edges {
       node {
         id
         title
@@ -166,7 +188,7 @@ queried directly like the following:
 ```graphql
 {
   allShopifyComment {
-    edge {
+    edges {
       node {
         id
         author {
@@ -187,7 +209,7 @@ Products in the collection are provided on the `products` field.
 ```graphql
 {
   allShopifyCollection {
-    edge {
+    edges {
       node {
         id
         descriptionHtml
@@ -216,7 +238,7 @@ fields.
 ```graphql
 {
   allShopifyProduct {
-    edge {
+    edges {
       node {
         id
         descriptionHtml
@@ -253,7 +275,7 @@ be queried directly like the following:
 ```graphql
 {
   allShopifyProductOption {
-    edge {
+    edges {
       node {
         id
         name
@@ -272,7 +294,7 @@ can be queried directly like the following:
 ```graphql
 {
   allShopifyProductVariant {
-    edge {
+    edges {
       node {
         id
         availableForSale
@@ -306,11 +328,31 @@ like the following:
 ```graphql
 {
   allShopifyShopPolicy {
-    edge {
+    edges {
       node {
         body
         title
         type
+      }
+    }
+  }
+}
+```
+
+### Query pages
+
+Shopify merchants can create pages to hold static HTML content.
+
+```graphql
+{
+  allShopifyPage {
+    edges {
+      node {
+        id
+        handle
+        title
+        body
+        bodySummary
       }
     }
   }

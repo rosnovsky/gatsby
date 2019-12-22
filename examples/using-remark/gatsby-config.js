@@ -59,15 +59,22 @@ module.exports = {
               directory: `${__dirname}/src/code-examples/`,
             },
           },
-          `gatsby-remark-prismjs`,
           `gatsby-remark-autolink-headers`,
+          `gatsby-remark-graphviz`, // graphviz before prismjs
+          `gatsby-remark-prismjs`,
           `gatsby-remark-katex`,
         ],
       },
     },
     `gatsby-transformer-yaml`,
     `gatsby-plugin-sharp`,
-    `gatsby-plugin-catch-links`,
+    {
+      resolve: `gatsby-plugin-catch-links`,
+      options: {
+        // Links are relative to this directory
+        excludeRegex: /excluded-link/,
+      },
+    },
     `gatsby-plugin-glamor`,
   ],
 }
